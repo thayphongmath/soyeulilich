@@ -153,6 +153,14 @@
       height: 150px;
     }
 
+    #timer {
+      font-size: 16px;
+      color: #d32f2f;
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
     @media (max-width: 600px) {
       .square {
         width: 40px;
@@ -226,6 +234,7 @@
       <iframe id="pdfFrame" title="PDF Bài tập"></iframe>
     </div>
     <div id="answer-bar">
+      <div id="timer"></div>
       <div id="question"></div>
       <div class="options-row">
         <button id="backBtn">◄ Quay lại</button>
@@ -241,6 +250,7 @@
     let current = 0;
     let startTime = null;
     let timerId = null;
+    let timeRemaining = 0;
     let studentName = '';
     let studentEmail = '';
     let sheetName = '';
@@ -250,14 +260,19 @@
 
     // Khởi tạo Google Sign-In
     function initGoogleSignIn() {
-      google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: handleCredentialResponse
-      });
-      google.accounts.id.renderButton(
-        document.getElementById("buttonDiv"),
-        { theme: "outline", size: "large" }
-      );
+      try {
+        google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleCredentialResponse
+        });
+        google.accounts.id.renderButton(
+          document.getElementById("buttonDiv"),
+          { theme: "outline", size: "large" }
+        );
+      } catch (error) {
+        document.getElementById("infoError").innerText = "Lỗi khởi tạo Google Sign-In. Vui lòng kiểm tra kết nối hoặc thử lại.";
+        console.error("Google Sign-In Error:", error);
+      }
     }
 
     function handleCredentialResponse(response) {
@@ -280,13 +295,14 @@
 
     // Hàm kiểm tra link PDF hợp lệ
     function isValidPDFLink(link) {
-      return link.includes("drive.google.com") && link.includes("/file/");
+      const regex = /^https:\/\/drive\.google\.com\/file\/d\/[a-zA-Z0-9_-]+/;
+      return regex.test(link);
     }
 
     // Hàm chuyển đổi link Google Drive sang định dạng xem PDF
     function convertGoogleDriveLink(link) {
       if (link.includes("drive.google.com")) {
-        const fileIdMatch = link.match(/\/d\/(.+?)\//);
+        const fileIdMatch = link.match(/\/d\/(.+?)(\/|$)/);
         if (fileIdMatch && fileIdMatch[1]) {
           return `https://drive.google.com/file/d/${fileIdMatch[1]}/preview`;
         }
@@ -297,20 +313,20 @@
     // Parse đáp án đúng
     function parseCorrectAnswers(inputStr, numMCQ, numTF, numShort) {
       const correct = {};
-      const lines = inputStr.trim().split('\n').filter(line => line.trim() !== '');
+      const lines = inputStr.trim().split('\n').map(line => line.trim()).filter(line => line);
       const totalQuestions = numMCQ + numTF + numShort;
 
       if (lines.length !== totalQuestions) {
-        throw new Error(`Số lượng đáp án (${lines.length}) không khớp với số câu hỏi (${totalQuestions})! Vui lòng kiểm tra lại textarea.`);
+        throw new Error(`Số lượng đáp án (${lines.length}) không khớp với số câu hỏi (${totalQuestions}). Vui lòng kiểm tra lại!`);
       }
 
       lines.forEach((line, index) => {
-        const parts = line.split('.');
-        if (parts.length !== 2) {
-          throw new Error(`Đáp án câu ${index + 1} không đúng định dạng (phải là "số.đáp_án")! Dòng: "${line}"`);
+        const parts = line.split('.').map(part => part.trim());
+        if (parts.length !== 2 || !parts[0] || !parts[1]) {
+          throw new Error(`Đáp án câu ${index + 1} không đúng định dạng (VD: "1.A"). Dòng: "${line}"`);
         }
-        const qNum = parts[0].trim();
-        const ansStr = parts[1].trim();
+        const qNum = parts[0];
+        const ansStr = parts[1].toUpperCase();
 
         if (!/^\d+$/.test(qNum) || parseInt(qNum) !== index + 1) {
           throw new Error(`Số câu hỏi tại dòng ${index + 1} không hợp lệ hoặc không theo thứ tự! Dòng: "${line}"`);
@@ -332,17 +348,32 @@
             'Ý 4': ansStr[3]
           };
         } else {
-          const answers = ansStr.split(',').map(item => item.trim()).filter(item => item !== '');
-          if (answers.length > 4) {
-            throw new Error(`Đáp án trả lời ngắn câu ${qNum} không được vượt quá 4 đáp án! Dòng: "${line}"`);
-          }
-          if (answers.length === 0) {
-            throw new Error(`Đáp án trả lời ngắn câu ${qNum} không được để trống! Dòng: "${line}"`);
+          const answers = ansStr.split(',').map(item => item.trim()).filter(item => item);
+          if (answers.length > 4 || answers.length === 0) {
+            throw new Error(`Đáp án trả lời ngắn câu ${qNum} phải từ 1 đến 4 đáp án! Dòng: "${line}"`);
           }
           correct[qNum] = answers;
         }
       });
       return correct;
+    }
+
+    // Hàm fetch với retry
+    async function fetchWithRetry(url, options, retries = 3, delay = 1000) {
+      for (let i = 0; i < retries; i++) {
+        try {
+          const response = await fetch(url, options);
+          if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+          return await response.json();
+        } catch (error) {
+          console.error("Fetch error:", error);
+          if (i < retries - 1) {
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
+          }
+          throw error;
+        }
+      }
     }
 
     // Admin: Tạo bài tập
@@ -359,6 +390,8 @@
       const maxAttemptsInput = parseInt(document.getElementById("maxAttempts").value) || 1;
       const errorDiv = document.getElementById("error");
 
+      errorDiv.innerText = ""; // Xóa lỗi cũ
+
       try {
         if (!pdfLink || !isValidPDFLink(pdfLink)) {
           throw new Error("Vui lòng nhập link PDF hợp lệ từ Google Drive!");
@@ -367,7 +400,7 @@
           throw new Error("Vui lòng nhập ít nhất một câu hỏi!");
         }
         if (pointsMCQ + pointsTF + pointsShort !== 10) {
-          throw new Error("Tổng điểm các phần phải bằng 10!");
+          throw new Error(`Tổng điểm (${pointsMCQ + pointsTF + pointsShort}) phải bằng 10! (Trắc nghiệm: ${pointsMCQ}, Đúng/Sai: ${pointsTF}, Trả lời ngắn: ${pointsShort})`);
         }
 
         const correctAnswers = parseCorrectAnswers(correctInput, numMCQ, numTF, numShort);
@@ -395,7 +428,7 @@
           });
         }
 
-        const response = await fetch(APPS_SCRIPT_URL, {
+        const result = await fetchWithRetry(APPS_SCRIPT_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -407,7 +440,7 @@
             max_attempts: maxAttemptsInput
           })
         });
-        const result = await response.json();
+
         if (result.status === 'success') {
           const examData = {
             pdfLink: convertGoogleDriveLink(pdfLink),
@@ -434,20 +467,22 @@
       const studentClass = document.getElementById("studentClass").value.trim();
       const infoError = document.getElementById("infoError");
 
+      infoError.innerText = "";
+
       if (!studentClass) {
         infoError.innerText = "Vui lòng nhập lớp!";
         return;
       }
 
       try {
-        const response = await fetch(`${APPS_SCRIPT_URL}?action=get_attempts&sheetName=${sheetName}&email=${studentEmail}`);
-        const result = await response.json();
+        const result = await fetchWithRetry(`${APPS_SCRIPT_URL}?action=get_attempts&sheetName=${sheetName}&email=${studentEmail}`);
+
         if (result.allowed) {
           infoError.innerText = "";
           document.getElementById("infoPanel").style.display = "none";
           document.getElementById("examPanel").style.display = "flex";
           startTime = new Date();
-          timerId = setTimeout(submitExam, timeLimit * 60000);
+          startTimer();
           current = 0;
           renderQuestion();
         } else {
@@ -456,6 +491,26 @@
       } catch (error) {
         infoError.innerText = `Lỗi: ${error.message}`;
       }
+    }
+
+    // Bắt đầu đồng hồ đếm ngược
+    function startTimer() {
+      timeRemaining = timeLimit * 60;
+      updateTimerDisplay();
+      timerId = setInterval(() => {
+        timeRemaining--;
+        updateTimerDisplay();
+        if (timeRemaining <= 0) {
+          clearInterval(timerId);
+          submitExam();
+        }
+      }, 1000);
+    }
+
+    // Cập nhật hiển thị thời gian
+    function updateTimerDisplay() {
+      const timerDisplay = document.getElementById("timer");
+      timerDisplay.innerText = `Thời gian còn lại: ${Math.floor(timeRemaining / 60)}:${(timeRemaining % 60).toString().padStart(2, '0')}`;
     }
 
     // Học sinh: Hiển thị câu hỏi
@@ -529,10 +584,15 @@
 
     // Lưu đáp án vào localStorage
     function saveAnswers() {
-      const urlParams = new URLSearchParams(window.location.search);
-      const examId = urlParams.get("exam");
-      if (examId) {
-        localStorage.setItem(`answers_${examId}`, JSON.stringify(answers));
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const examId = urlParams.get("exam");
+        if (examId) {
+          localStorage.setItem(`answers_${examId}`, JSON.stringify(answers));
+        }
+      } catch (error) {
+        console.error("Lỗi lưu đáp án vào localStorage:", error);
+        alert("Không thể lưu đáp án. Vui lòng kiểm tra dung lượng trình duyệt hoặc thử lại.");
       }
     }
 
@@ -568,13 +628,15 @@
 
     // Nộp bài: Tính toán và gửi đến Google Sheets
     async function submitExam() {
-      clearTimeout(timerId);
+      if (!confirm("Bạn có chắc muốn nộp bài không?")) return;
+
+      clearInterval(timerId);
       const endTime = new Date();
       const timeTaken = Math.round((endTime - startTime) / 60000);
       const studentClass = document.getElementById("studentClass").value.trim();
 
       try {
-        const response = await fetch(APPS_SCRIPT_URL, {
+        const result = await fetchWithRetry(APPS_SCRIPT_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -588,7 +650,6 @@
           })
         });
 
-        const result = await response.json();
         if (result.status === 'success') {
           alert(`Nộp bài thành công!\nThời gian: ${timeTaken} phút\nĐiểm: ${result.score}`);
         } else {
