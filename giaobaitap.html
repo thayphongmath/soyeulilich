@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hệ thống giao bài tập</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f9;
+    }
+
+    #adminPanel,
+    #infoPanel,
+    #examPanel {
+      padding: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    #infoPanel,
+    #examPanel {
+      display: none;
+    }
+
+    #examPanel {
+      height: 100vh;
+      flex-direction: column;
+    }
+
+    #pdf-container {
+      flex: 9;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    #pdfFrame {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    #answer-bar {
+      flex: 1;
+      background: #fff;
+      border-top: 2px solid #ccc;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    #question {
+      text-align: center;
+      font-weight: bold;
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+
+    .options-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      width: 100%;
+    }
+
+    .center-options {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      flex-grow: 1;
+    }
+
+    .square {
+      width: 50px;
+      height: 50px;
+      border: 2px solid #333;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 20px;
+      user-select: none;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .square:hover {
+      background: #e0e0e0;
+    }
+
+    .square.selected {
+      background: #4caf50;
+      color: white;
+      border-color: #4caf50;
+    }
+
+    .short-answer input {
+      width: 60px;
+      height: 40px;
+      font-size: 16px;
+      text-align: center;
+      border: 2px solid #333;
+      border-radius: 4px;
+      margin: 0 5px;
+    }
+
+    button {
+      padding: 8px 16px;
+      font-size: 16px;
+      border: none;
+      border-radius: 4px;
+      background: #2196f3;
+      color: white;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background: #1976d2;
+    }
+
+    button:disabled {
+      background: #aaa;
+      cursor: not-allowed;
+    }
+
+    #shareLink {
+      margin-top: 15px;
+      font-weight: bold;
+      color: #2e7d32;
+    }
+
+    .error {
+      color: red;
+      margin-top: 10px;
+    }
+
+    textarea {
+      width: 100%;
+      height: 150px;
+    }
+
+    @media (max-width: 600px) {
+      .square {
+        width: 40px;
+        height: 40px;
+        font-size: 16px;
+      }
+
+      .short-answer input {
+        width: 50px;
+        height: 35px;
+        font-size: 14px;
+      }
+
+      button {
+        padding: 6px 12px;
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Giao diện Admin -->
+  <div id="adminPanel">
+    <h2>Tạo bài tập</h2>
+    <div>
+      <label>Link PDF (Google Drive): </label><br>
+      <input id="pdfLink" size="60" placeholder="Dán link Google Drive PDF..." required><br><br>
+      <label>Số câu Trắc nghiệm: </label>
+      <input id="numMCQ" type="number" value="1" min="0"><br>
+      <label>Điểm cho Trắc nghiệm (tổng 10 điểm): </label>
+      <input id="pointsMCQ" type="number" step="0.5" value="3" min="0"><br><br>
+      <label>Số câu Đúng/Sai: </label>
+      <input id="numTF" type="number" value="1" min="0"><br>
+      <label>Điểm cho Đúng/Sai: </label>
+      <input id="pointsTF" type="number" step="0.5" value="3" min="0"><br><br>
+      <label>Số câu Trả lời ngắn: </label>
+      <input id="numShort" type="number" value="1" min="0"><br>
+      <label>Điểm cho Trả lời ngắn: </label>
+      <input id="pointsShort" type="number" step="0.5" value="4" min="0"><br><br>
+      <label>Đáp án đúng (một dòng mỗi câu, ví dụ):</label><br>
+      <textarea id="correctAnswers"
+        placeholder="1.A\n2.B\n3.DSSS\n4.DDDD\n5.2,43\n6.2025"></textarea><br><br>
+      <label>Thời gian làm bài (phút): </label>
+      <input id="timeLimit" type="number" value="30" min="1"><br><br>
+      <label>Số lần làm bài tối đa: </label>
+      <input id="maxAttempts" type="number" value="1" min="1"><br><br>
+      <button onclick="createExam()">Tạo bài tập</button>
+      <div id="shareLink"></div>
+      <div id="error" class="error"></div>
+    </div>
+  </div>
+
+  <!-- Giao diện Đăng nhập và Nhập thông tin học sinh -->
+  <div id="infoPanel">
+    <h2>Đăng nhập Google để làm bài</h2>
+    <div id="buttonDiv"></div>
+    <div id="studentInfo" style="display:none;">
+      <p>Họ và tên: <span id="studentName"></span></p>
+      <p>Email: <span id="studentEmail"></span></p>
+      <label>Lớp: <input id="studentClass" placeholder="Nhập lớp..." required></label><br><br>
+      <button onclick="checkAndStartExam()">Bắt đầu làm bài</button>
+    </div>
+    <div id="infoError" class="error"></div>
+  </div>
+
+  <!-- Giao diện Học sinh -->
+  <div id="examPanel">
+    <div id="pdf-container">
+      <iframe id="pdfFrame" title="PDF Bài tập"></iframe>
+    </div>
+    <div id="answer-bar">
+      <div id="question"></div>
+      <div class="options-row">
+        <button id="backBtn">◄ Quay lại</button>
+        <div class="center-options" id="options"></div>
+        <button id="nextBtn">Tiếp ►</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let questions = [];
+    let answers = [];
+    let current = 0;
+    let startTime = null;
+    let timerId = null;
+    let studentName = '';
+    let studentEmail = '';
+    let sheetName = '';
+    let timeLimit = 0;
+    const APPS_SCRIPT_URL = 'YOUR_NEW_APPS_SCRIPT_URL'; // Thay bằng URL Apps Script mới
+    const GOOGLE_CLIENT_ID = '510396691917-o4gt6e2nom76l9qdjsa4hegmtcp6775k.apps.googleusercontent.com';
+
+    // Khởi tạo Google Sign-In
+    function initGoogleSignIn() {
+      google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleCredentialResponse
+      });
+      google.accounts.id.renderButton(
+        document.getElementById("buttonDiv"),
+        { theme: "outline", size: "large" }
+      );
+    }
+
+    function handleCredentialResponse(response) {
+      const responsePayload = parseJwt(response.credential);
+      studentName = responsePayload.name;
+      studentEmail = responsePayload.email;
+      document.getElementById("studentName").innerText = studentName;
+      document.getElementById("studentEmail").innerText = studentEmail;
+      document.getElementById("buttonDiv").style.display = "none";
+      document.getElementById("studentInfo").style.display = "block";
+    }
+
+    function parseJwt(token) {
+      try {
+        return JSON.parse(atob(token.split('.')[1]));
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // Hàm kiểm tra link PDF hợp lệ
+    function isValidPDFLink(link) {
+      return link.includes("drive.google.com") && link.includes("/file/");
+    }
+
+    // Hàm chuyển đổi link Google Drive sang định dạng xem PDF
+    function convertGoogleDriveLink(link) {
+      if (link.includes("drive.google.com")) {
+        const fileIdMatch = link.match(/\/d\/(.+?)\//);
+        if (fileIdMatch && fileIdMatch[1]) {
+          return `https://drive.google.com/file/d/${fileIdMatch[1]}/preview`;
+        }
+      }
+      return link;
+    }
+
+    // Parse đáp án đúng
+    function parseCorrectAnswers(inputStr, numMCQ, numTF, numShort) {
+      const correct = {};
+      const lines = inputStr.trim().split('\n').filter(line => line.trim() !== '');
+      const totalQuestions = numMCQ + numTF + numShort;
+
+      if (lines.length !== totalQuestions) {
+        throw new Error(`Số lượng đáp án (${lines.length}) không khớp với số câu hỏi (${totalQuestions})! Vui lòng kiểm tra lại textarea.`);
+      }
+
+      lines.forEach((line, index) => {
+        const parts = line.split('.');
+        if (parts.length !== 2) {
+          throw new Error(`Đáp án câu ${index + 1} không đúng định dạng (phải là "số.đáp_án")! Dòng: "${line}"`);
+        }
+        const qNum = parts[0].trim();
+        const ansStr = parts[1].trim();
+
+        if (!/^\d+$/.test(qNum) || parseInt(qNum) !== index + 1) {
+          throw new Error(`Số câu hỏi tại dòng ${index + 1} không hợp lệ hoặc không theo thứ tự! Dòng: "${line}"`);
+        }
+
+        if (index < numMCQ) {
+          if (!['A', 'B', 'C', 'D'].includes(ansStr)) {
+            throw new Error(`Đáp án trắc nghiệm câu ${qNum} phải là A, B, C hoặc D! Dòng: "${line}"`);
+          }
+          correct[qNum] = ansStr;
+        } else if (index < numMCQ + numTF) {
+          if (ansStr.length !== 4 || !/^[DS]{4}$/.test(ansStr)) {
+            throw new Error(`Đáp án đúng/sai câu ${qNum} phải có 4 ký tự D hoặc S! Dòng: "${line}"`);
+          }
+          correct[qNum] = {
+            'Ý 1': ansStr[0],
+            'Ý 2': ansStr[1],
+            'Ý 3': ansStr[2],
+            'Ý 4': ansStr[3]
+          };
+        } else {
+          const answers = ansStr.split(',').map(item => item.trim()).filter(item => item !== '');
+          if (answers.length > 4) {
+            throw new Error(`Đáp án trả lời ngắn câu ${qNum} không được vượt quá 4 đáp án! Dòng: "${line}"`);
+          }
+          if (answers.length === 0) {
+            throw new Error(`Đáp án trả lời ngắn câu ${qNum} không được để trống! Dòng: "${line}"`);
+          }
+          correct[qNum] = answers;
+        }
+      });
+      return correct;
+    }
+
+    // Admin: Tạo bài tập
+    async function createExam() {
+      const pdfLink = document.getElementById("pdfLink").value.trim();
+      const numMCQ = parseInt(document.getElementById("numMCQ").value) || 0;
+      const numTF = parseInt(document.getElementById("numTF").value) || 0;
+      const numShort = parseInt(document.getElementById("numShort").value) || 0;
+      const pointsMCQ = parseFloat(document.getElementById("pointsMCQ").value) || 0;
+      const pointsTF = parseFloat(document.getElementById("pointsTF").value) || 0;
+      const pointsShort = parseFloat(document.getElementById("pointsShort").value) || 0;
+      const correctInput = document.getElementById("correctAnswers").value.trim();
+      const timeLimitInput = parseInt(document.getElementById("timeLimit").value) || 30;
+      const maxAttemptsInput = parseInt(document.getElementById("maxAttempts").value) || 1;
+      const errorDiv = document.getElementById("error");
+
+      try {
+        if (!pdfLink || !isValidPDFLink(pdfLink)) {
+          throw new Error("Vui lòng nhập link PDF hợp lệ từ Google Drive!");
+        }
+        if (numMCQ + numTF + numShort === 0) {
+          throw new Error("Vui lòng nhập ít nhất một câu hỏi!");
+        }
+        if (pointsMCQ + pointsTF + pointsShort !== 10) {
+          throw new Error("Tổng điểm các phần phải bằng 10!");
+        }
+
+        const correctAnswers = parseCorrectAnswers(correctInput, numMCQ, numTF, numShort);
+
+        questions = [];
+        let counter = 1;
+        for (let i = 0; i < numMCQ; i++) {
+          questions.push({
+            type: "mcq",
+            text: `Câu ${counter++}: Trắc nghiệm`,
+            options: ["A", "B", "C", "D"]
+          });
+        }
+        for (let i = 0; i < numTF; i++) {
+          questions.push({
+            type: "truefalse",
+            text: `Câu ${counter++}: Đúng/Sai`,
+            options: ["Ý 1", "Ý 2", "Ý 3", "Ý 4"]
+          });
+        }
+        for (let i = 0; i < numShort; i++) {
+          questions.push({
+            type: "short",
+            text: `Câu ${counter++}: Trả lời ngắn`
+          });
+        }
+
+        const response = await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'create_exam',
+            questions: questions,
+            correctAnswers: correctAnswers,
+            point_alloc: { mcq: pointsMCQ, tf: pointsTF, short: pointsShort },
+            time_limit: timeLimitInput,
+            max_attempts: maxAttemptsInput
+          })
+        });
+        const result = await response.json();
+        if (result.status === 'success') {
+          const examData = {
+            pdfLink: convertGoogleDriveLink(pdfLink),
+            questions,
+            sheetName: result.sheetName,
+            timeLimit: timeLimitInput
+          };
+          const examId = "exam" + Date.now();
+          localStorage.setItem(examId, JSON.stringify(examData));
+
+          const shareURL = window.location.origin + window.location.pathname + "?exam=" + examId;
+          document.getElementById("shareLink").innerHTML =
+            `📌 Link cho học sinh: <a href="${shareURL}" target="_blank">${shareURL}</a>`;
+        } else {
+          throw new Error(result.message);
+        }
+      } catch (error) {
+        errorDiv.innerText = `Lỗi: ${error.message}`;
+      }
+    }
+
+    // Kiểm tra và bắt đầu exam
+    async function checkAndStartExam() {
+      const studentClass = document.getElementById("studentClass").value.trim();
+      const infoError = document.getElementById("infoError");
+
+      if (!studentClass) {
+        infoError.innerText = "Vui lòng nhập lớp!";
+        return;
+      }
+
+      try {
+        const response = await fetch(`${APPS_SCRIPT_URL}?action=get_attempts&sheetName=${sheetName}&email=${studentEmail}`);
+        const result = await response.json();
+        if (result.allowed) {
+          infoError.innerText = "";
+          document.getElementById("infoPanel").style.display = "none";
+          document.getElementById("examPanel").style.display = "flex";
+          startTime = new Date();
+          timerId = setTimeout(submitExam, timeLimit * 60000);
+          current = 0;
+          renderQuestion();
+        } else {
+          infoError.innerText = "Bạn đã vượt quá số lần làm bài cho phép!";
+        }
+      } catch (error) {
+        infoError.innerText = `Lỗi: ${error.message}`;
+      }
+    }
+
+    // Học sinh: Hiển thị câu hỏi
+    function renderQuestion() {
+      const q = questions[current];
+      document.getElementById("question").innerText = q.text;
+      const container = document.getElementById("options");
+      container.innerHTML = "";
+
+      if (q.type === "mcq") {
+        q.options.forEach((opt) => {
+          const div = document.createElement("div");
+          div.className = "square";
+          div.innerText = opt;
+          if (answers[current] === opt) div.classList.add("selected");
+          div.onclick = () => {
+            container.querySelectorAll(".square").forEach(sq => sq.classList.remove("selected"));
+            div.classList.add("selected");
+            answers[current] = opt;
+            saveAnswers();
+          };
+          container.appendChild(div);
+        });
+      } else if (q.type === "truefalse") {
+        q.options.forEach((opt) => {
+          const group = document.createElement("div");
+          group.style.display = "flex";
+          group.style.alignItems = "center";
+          group.style.gap = "6px";
+
+          const label = document.createElement("span");
+          label.innerText = opt + ":";
+          group.appendChild(label);
+
+          ["Đ", "S"].forEach(choice => {
+            const div = document.createElement("div");
+            div.className = "square";
+            div.innerText = choice;
+            if (answers[current] && answers[current][opt] === choice) div.classList.add("selected");
+            div.onclick = () => {
+              group.querySelectorAll(".square").forEach(sq => sq.classList.remove("selected"));
+              div.classList.add("selected");
+              if (!answers[current]) answers[current] = {};
+              answers[current][opt] = choice;
+              saveAnswers();
+            };
+            group.appendChild(div);
+          });
+
+          container.appendChild(group);
+        });
+      } else if (q.type === "short") {
+        const wrapper = document.createElement("div");
+        wrapper.className = "short-answer";
+        for (let i = 0; i < 4; i++) {
+          const input = document.createElement("input");
+          input.value = answers[current]?.[i] || "";
+          input.oninput = () => {
+            if (!answers[current]) answers[current] = [];
+            answers[current][i] = input.value;
+            saveAnswers();
+          };
+          wrapper.appendChild(input);
+        }
+        container.appendChild(wrapper);
+      }
+
+      document.getElementById("backBtn").disabled = current === 0;
+      document.getElementById("nextBtn").innerText = current === questions.length - 1 ? "Nộp bài" : "Tiếp ►";
+    }
+
+    // Lưu đáp án vào localStorage
+    function saveAnswers() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const examId = urlParams.get("exam");
+      if (examId) {
+        localStorage.setItem(`answers_${examId}`, JSON.stringify(answers));
+      }
+    }
+
+    // Tải đáp án đã lưu
+    function loadAnswers() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const examId = urlParams.get("exam");
+      if (examId) {
+        const savedAnswers = localStorage.getItem(`answers_${examId}`);
+        if (savedAnswers) {
+          answers = JSON.parse(savedAnswers);
+        }
+      }
+    }
+
+    // Chuyển câu hỏi tiếp theo hoặc nộp bài
+    function nextQuestion() {
+      if (current < questions.length - 1) {
+        current++;
+        renderQuestion();
+      } else {
+        submitExam();
+      }
+    }
+
+    // Quay lại câu hỏi trước
+    function prevQuestion() {
+      if (current > 0) {
+        current--;
+        renderQuestion();
+      }
+    }
+
+    // Nộp bài: Tính toán và gửi đến Google Sheets
+    async function submitExam() {
+      clearTimeout(timerId);
+      const endTime = new Date();
+      const timeTaken = Math.round((endTime - startTime) / 60000);
+      const studentClass = document.getElementById("studentClass").value.trim();
+
+      try {
+        const response = await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'submit',
+            name: studentName,
+            email: studentEmail,
+            class: studentClass,
+            timeTaken: timeTaken + ' phút',
+            answers: answers,
+            sheetName: sheetName
+          })
+        });
+
+        const result = await response.json();
+        if (result.status === 'success') {
+          alert(`Nộp bài thành công!\nThời gian: ${timeTaken} phút\nĐiểm: ${result.score}`);
+        } else {
+          alert(`Lỗi: ${result.message}`);
+        }
+      } catch (error) {
+        alert(`Lỗi kết nối: ${error.message}`);
+      }
+    }
+
+    // Gán sự kiện cho nút
+    document.getElementById("backBtn").onclick = prevQuestion;
+    document.getElementById("nextBtn").onclick = nextQuestion;
+
+    // Kiểm tra chế độ học sinh khi tải trang
+    const urlParams = new URLSearchParams(window.location.search);
+    const examId = urlParams.get("exam");
+    if (examId) {
+      const examData = JSON.parse(localStorage.getItem(examId));
+      if (examData) {
+        document.getElementById("adminPanel").style.display = "none";
+        document.getElementById("infoPanel").style.display = "block";
+        initGoogleSignIn();
+        questions = examData.questions;
+        sheetName = examData.sheetName;
+        timeLimit = examData.timeLimit;
+        document.getElementById("pdfFrame").src = examData.pdfLink;
+        loadAnswers();
+        answers = answers || new Array(questions.length);
+      } else {
+        document.body.innerHTML = "<h2 style='text-align: center; color: red;'>❌ Bài tập không tồn tại hoặc đã bị xóa!</h2>";
+      }
+    }
+  </script>
+
+</body>
+
+</html>
