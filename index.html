@@ -1,205 +1,282 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <title>Hệ thống đề thi</title>
-  <style>
-    body { font-family: sans-serif; margin: 0; padding: 0; }
-    #adminPanel, #examPanel { padding: 10px; }
-    #examPanel { display: none; height: 100vh; flex-direction: column; }
-    #pdf-container { flex: 9; }
-    #answer-bar {
-      flex: 1;
-      border-top: 2px solid #ccc;
-      background: white;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      padding: 4px;
-    }
-    #question { text-align: center; font-weight: bold; margin-bottom: 4px; }
-    .options-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; }
-    .center-options { display: flex; justify-content: center; align-items: center; gap: 8px; flex-grow: 1; }
-    .square { width: 50px; height: 50px; border: 2px solid #333; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 20px; user-select: none; }
-    .square.selected { background: #4caf50; color: white; }
-    .short-answer input { width: 50px; height: 50px; font-size: 18px; text-align: center; }
-    button { padding: 6px 10px; font-size: 14px; border: none; border-radius: 5px; background: #2196f3; color: white; cursor: pointer; }
-    button:disabled { background: #aaa; cursor: not-allowed; }
-    #shareLink { margin-top: 10px; font-weight: bold; color: green; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Form Điền Dữ Liệu Lớp Học</title>
+    <!-- Bootstrap CSS for responsive and beautiful design -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Custom CSS for school theme, bolder design -->
+    <style>
+        body { font-family: 'Times New Roman', serif; background-color: #f0f4f8; color: #333; font-size: 1.1rem; }
+        .container { max-width: 800px; margin: auto; padding: 20px; }
+        .form-section { background: white; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); padding: 20px; margin-bottom: 20px; }
+        label { font-weight: bold; }  /* Đậm nét cho labels */
+        .form-control { border: 2px solid #ced4da; }  /* Border đậm hơn cho inputs */
+        .btn-primary { background-color: #007bff; border: none; font-weight: bold; }
+        .btn-primary:hover { background-color: #0056b3; }
+        .btn-primary:disabled { background-color: #6c757d; cursor: not-allowed; }
+        .form-check-label { font-weight: normal; } /* Labels cho radio/checkbox nhẹ hơn */
+        @media (max-width: 768px) { .row > div { margin-bottom: 10px; } }  /* Mobile optimization */
+    </style>
 </head>
 <body>
-
-<!-- ========== ADMIN GIAO DIỆN ========== -->
-<div id="adminPanel">
-  <h2>Tạo đề thi (Admin)</h2>
-  <label>Link PDF: <input id="pdfLink" size="60" placeholder="Dán link Google Drive PDF..."></label><br><br>
-  <label>Số câu Trắc nghiệm: <input id="numMCQ" type="number" value="1" min="0"></label><br>
-  <label>Số câu Đúng/Sai: <input id="numTF" type="number" value="1" min="0"></label><br>
-  <label>Số câu Ngắn: <input id="numShort" type="number" value="1" min="0"></label><br><br>
-  <button onclick="createExam()">Tạo đề</button>
-  <div id="shareLink"></div>
-</div>
-
-<!-- ========== STUDENT GIAO DIỆN ========== -->
-<div id="examPanel">
-  <div id="pdf-container">
-    <iframe id="pdfFrame" width="100%" height="100%"></iframe>
-  </div>
-  <div id="answer-bar">
-    <div id="question"></div>
-    <div class="options-row">
-      <button id="backBtn">◀ Quay lại</button>
-      <div class="center-options" id="options"></div>
-      <button id="nextBtn">Tiếp ▶</button>
+    <div class="container">
+        <h2 class="text-center mb-4">Dữ Liệu Lớp Học 12C1 (Năm 2025-2026)</h2>
+        
+        <!-- Form cho Lý Lịch Học Sinh (kết hợp LyLich1 & LyLich2) -->
+        <div class="form-section">
+            <form id="studentForm">
+                <div class="row">
+                    <div class="col-md-12">
+                        <label>Họ và Tên HS</label>
+                        <input type="text" class="form-control" id="hoTen" placeholder="Ví dụ: Nguyễn Văn A" required>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <label>Ngày Tháng Năm Sinh (dd/mm/yyyy)</label>
+                        <input type="text" class="form-control" id="ngaySinh" placeholder="Ví dụ: '01/01/2008">
+                    </div>
+                    <div class="col-md-6">
+                        <label>Nơi Sinh (Tỉnh)</label>
+                        <input type="text" class="form-control" id="noiSinh" placeholder="Ví dụ: Bình Dương">
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <label>Giới Tính (Bắt buộc)</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="gioiTinh" id="nam" value="Nam" required>
+                            <label class="form-check-label" for="nam">Nam</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="gioiTinh" id="nu" value="Nữ">
+                            <label class="form-check-label" for="nu">Nữ</label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label>Dân Tộc</label>
+                        <input type="text" class="form-control" id="danToc" placeholder="Ví dụ: Kinh">
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <label>Diện Chính Sách (SHN, SCN, KK,...)</label>
+                        <input type="text" class="form-control" id="dienChinhSach" placeholder="Ví dụ: KK">
+                    </div>
+                    <div class="col-md-6">
+                        <label>Chỗ Ở Hiện Nay (Tổ/Ấp)</label>
+                        <input type="text" class="form-control" id="toAp" placeholder="Ví dụ: Tổ 1">
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <label>Xã</label>
+                        <input type="text" class="form-control" id="xa" placeholder="Ví dụ: Xã Hội An">
+                    </div>
+                    <div class="col-md-6">
+                        <label>Tỉnh</label>
+                        <input type="text" class="form-control" id="tinh" placeholder="Ví dụ: An Giang">
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <label>Cha: Họ Tên</label>
+                        <input type="text" class="form-control" id="chaHoTen" placeholder="Ví dụ: Võ Thanh Phong">
+                    </div>
+                    <div class="col-md-6">
+                        <label>Cha: Nghề Nghiệp</label>
+                        <input type="text" class="form-control" id="chaNgheNghiep" placeholder="Ví dụ: Nông dân">
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <label>Mẹ: Họ Tên</label>
+                        <input type="text" class="form-control" id="meHoTen" placeholder="Ví dụ: Trần Thị C">
+                    </div>
+                    <div class="col-md-6">
+                        <label>Mẹ: Nghề Nghiệp</label>
+                        <input type="text" class="form-control" id="meNgheNghiep" placeholder="Ví dụ: Nội trợ">
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <label>SĐT Liên Lạc của Cha Mẹ (Nhập số)</label>
+                        <input type="text" class="form-control" id="sdtLienLac" placeholder="Ví dụ: 0382311919">
+                    </div>
+                    <div class="col-md-6">
+                        <label>KQ Rèn Luyện 24-25</label>
+                        <input type="text" class="form-control" id="renLuyen" placeholder="Ví dụ: Tốt">
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <label>KQ Học Tập 24-25</label>
+                        <input type="text" class="form-control" id="hocTap" placeholder="Ví dụ: Giỏi">
+                    </div>
+                    <div class="col-md-6">
+                        <label>Ban Cán Sự Lớp (LT, LP, TT)</label>
+                        <input type="text" class="form-control" id="banCanSu" placeholder="Ví dụ: LT">
+                    </div>
+                </div>
+                <!-- Phần LyLich2 -->
+                <hr>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <label>Email</label>
+                        <input type="email" class="form-control" id="email" placeholder="Ví dụ: vana@example.com">
+                    </div>
+                    <div class="col-md-6">
+                        <label>Số CCCD/CMND</label>
+                        <input type="text" class="form-control" id="cccd" placeholder="Ví dụ: 089089002014">
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <label>Số điện thoại Học sinh (Nhập số)</label>
+                        <input type="text" class="form-control" id="sdtHS" placeholder="Ví dụ: 0981011235">
+                    </div>
+                    <div class="col-md-6">
+                        <label>Cân Nặng (kg, ví dụ 40.5)</label>
+                        <input type="number" step="0.1" class="form-control" id="canNang" placeholder="Ví dụ: 45.5">
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <label>Chiều Cao (cm)</label>
+                        <input type="number" class="form-control" id="chieuCao" placeholder="Ví dụ: 160">
+                    </div>
+                    <div class="col-md-6">
+                        <label>Biết Bơi (check nếu biết bơi)</label>
+                        <input type="checkbox" id="bietBoi">
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <label>Bệnh Về Mắt</label>
+                        <input type="text" class="form-control" id="benhMat" placeholder="Ví dụ: Cận thị, Loạn thị, Viễn thị">
+                    </div>
+                    <div class="col-md-6">
+                        <label>Tiền Sử Bệnh Cần Theo Dõi</label>
+                        <input type="text" class="form-control" id="tienSuBenh" placeholder="Ví dụ: Hen suyễn, Tim">
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-4">
+                        <label>Phương Tiện: Xe Đạp</label>
+                        <input type="checkbox" id="phuongTienXD">
+                    </div>
+                    <div class="col-md-4">
+                        <label>Xe Máy/Điện</label>
+                        <input type="checkbox" id="phuongTienXeMay">
+                    </div>
+                    <div class="col-md-4">
+                        <label>Khác</label>
+                        <input type="text" class="form-control" id="phuongTienKhac" placeholder="Ví dụ: Xe buýt">
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-4">
+                        <label>Học Trực Tuyến: Đủ ĐK</label>
+                        <input type="radio" name="hocTrucTuyen" id="hocTrucTuyenDu">
+                    </div>
+                    <div class="col-md-4">
+                        <label>Không Đủ ĐK</label>
+                        <input type="radio" name="hocTrucTuyen" id="hocTrucTuyenKhong">
+                    </div>
+                    <div class="col-md-4">
+                        <label>Có Thể Nhờ Bạn</label>
+                        <input type="radio" name="hocTrucTuyen" id="hocTrucTuyenNho">
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <label>Ghi Chú</label>
+                        <textarea class="form-control" id="ghiChu" placeholder="Ví dụ: Diện chính sách: KK"></textarea>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="camKet" required>
+                            <label class="form-check-label" for="camKet">Tôi cam kết thông tin đã nhập là đúng sự thật</label>
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary mt-4 w-100" id="submitBtn">Nộp Thông Tin</button>
+            </form>
+        </div>
     </div>
-  </div>
-</div>
 
-<script>
-  let questions = [];
-  let answers = {};
-  let current = 0;
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script>
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbys_e1jIVfYoGd5gMgh5isfnNH23zSy2UAnbQypRDaeBHvF84u_qoRybs0UZnkD2PM/exec';
 
-  // ========== ADMIN ==========
-  function createExam() {
-    const pdfLink = document.getElementById("pdfLink").value.trim();
-    const numMCQ = parseInt(document.getElementById("numMCQ").value);
-    const numTF = parseInt(document.getElementById("numTF").value);
-    const numShort = parseInt(document.getElementById("numShort").value);
+        // Xử lý form học sinh
+        document.getElementById('studentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true; // Vô hiệu hóa nút ngay khi nhấn
 
-    questions = [];
-    let counter = 1;
+            const sdtLienLac = document.getElementById('sdtLienLac').value;
+            const sdtHS = document.getElementById('sdtHS').value;
+            const data = {
+                type: 'student',
+                hoTen: document.getElementById('hoTen').value,
+                ngaySinh: document.getElementById('ngaySinh').value,
+                noiSinh: document.getElementById('noiSinh').value,
+                gioiTinh: document.querySelector('input[name="gioiTinh"]:checked')?.value || '',
+                danToc: document.getElementById('danToc').value,
+                dienChinhSach: document.getElementById('dienChinhSach').value,
+                toAp: document.getElementById('toAp').value,
+                xa: document.getElementById('xa').value,
+                tinh: document.getElementById('tinh').value,
+                chaHoTen: document.getElementById('chaHoTen').value,
+                chaNgheNghiep: document.getElementById('chaNgheNghiep').value,
+                meHoTen: document.getElementById('meHoTen').value,
+                meNgheNghiep: document.getElementById('meNgheNghiep').value,
+                sdtLienLac: sdtLienLac ? `'${sdtLienLac}` : '',  // Tự động thêm dấu '
+                renLuyen: document.getElementById('renLuyen').value,
+                hocTap: document.getElementById('hocTap').value,
+                banCanSu: document.getElementById('banCanSu').value,
+                email: document.getElementById('email').value,
+                cccd: document.getElementById('cccd').value,
+                sdtHS: sdtHS ? `'${sdtHS}` : '',  // Tự động thêm dấu '
+                canNang: document.getElementById('canNang').value,
+                chieuCao: document.getElementById('chieuCao').value,
+                bietBoi: document.getElementById('bietBoi').checked,
+                benhMat: document.getElementById('benhMat').value,
+                tienSuBenh: document.getElementById('tienSuBenh').value,
+                phuongTienXD: document.getElementById('phuongTienXD').checked,
+                phuongTienXeMay: document.getElementById('phuongTienXeMay').checked,
+                phuongTienKhac: document.getElementById('phuongTienKhac').value,
+                hocTrucTuyenDu: document.getElementById('hocTrucTuyenDu').checked,
+                hocTrucTuyenKhong: document.getElementById('hocTrucTuyenKhong').checked,
+                hocTrucTuyenNho: document.getElementById('hocTrucTuyenNho').checked,
+                ghiChu: document.getElementById('ghiChu').value
+            };
 
-    for (let i=0;i<numMCQ;i++) {
-      questions.push({ type:"mcq", text:`Câu ${counter++}: Trắc nghiệm`, options:["A","B","C","D"] });
-    }
-    for (let i=0;i<numTF;i++) {
-      questions.push({ type:"truefalse", text:`Câu ${counter++}: Đúng/Sai`, options:["Ý 1","Ý 2","Ý 3","Ý 4"] });
-    }
-    for (let i=0;i<numShort;i++) {
-      questions.push({ type:"short", text:`Câu ${counter++}: Trả lời ngắn` });
-    }
-
-    const examData = { pdfLink, questions };
-    const examId = "exam" + Date.now();
-    localStorage.setItem(examId, JSON.stringify(examData));
-
-    const shareURL = window.location.origin + window.location.pathname + "?exam=" + examId;
-    document.getElementById("shareLink").innerHTML =
-      `📌 Link cho học sinh: <a href="${shareURL}" target="_blank">${shareURL}</a>`;
-  }
-
-  // ========== STUDENT ==========
-  const backBtn = document.getElementById("backBtn");
-  const nextBtn = document.getElementById("nextBtn");
-
-  function renderQuestion() {
-    const q = questions[current];
-    document.getElementById("question").innerText = q.text;
-    const container = document.getElementById("options");
-    container.innerHTML = "";
-
-    if (q.type === "mcq") {
-      q.options.forEach((opt) => {
-        const div = document.createElement("div");
-        div.className = "square";
-        div.innerText = opt;
-        if (answers[current] === opt) div.classList.add("selected");
-        div.onclick = () => {
-          container.querySelectorAll(".square").forEach(sq => sq.classList.remove("selected"));
-          div.classList.add("selected");
-          answers[current] = opt;
-        };
-        container.appendChild(div);
-      });
-    }
-    else if (q.type === "truefalse") {
-      q.options.forEach((opt) => {
-        const group = document.createElement("div");
-        group.style.display = "flex";
-        group.style.alignItems = "center";
-        group.style.gap = "4px";
-
-        const label = document.createElement("span");
-        label.innerText = opt+":";
-        group.appendChild(label);
-
-        ["Đ","S"].forEach(choice => {
-          const div = document.createElement("div");
-          div.className = "square";
-          div.innerText = choice;
-          if (answers[current] && answers[current][opt] === choice) div.classList.add("selected");
-          div.onclick = () => {
-            group.querySelectorAll(".square").forEach(sq => sq.classList.remove("selected"));
-            div.classList.add("selected");
-            if (!answers[current]) answers[current] = {};
-            answers[current][opt] = choice;
-          };
-          group.appendChild(div);
+            try {
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(data),
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const result = await response.json();
+                if (result.status === 'success') {
+                    alert('Nộp thành công, cảm ơn Em!');
+                    // Reset form
+                    document.getElementById('studentForm').reset();
+                }
+            } catch (error) {
+                alert('Lỗi: ' + error);
+            } finally {
+                submitBtn.disabled = false; // Kích hoạt lại nút sau khi xử lý
+            }
         });
-
-        container.appendChild(group);
-      });
-    }
-    else if (q.type === "short") {
-      const wrapper = document.createElement("div");
-      wrapper.className = "short-answer";
-      for (let i=0;i<4;i++){
-        const input = document.createElement("input");
-        input.value = answers[current]?.[i] || "";
-        input.oninput = () => {
-          if (!answers[current]) answers[current] = [];
-          answers[current][i] = input.value;
-        };
-        wrapper.appendChild(input);
-      }
-      container.appendChild(wrapper);
-    }
-
-    // update nút
-    backBtn.disabled = (current===0);
-    nextBtn.innerText = (current===questions.length-1) ? "Nộp bài" : "Tiếp ▶";
-  }
-
-  function nextQuestion(){
-    if (current < questions.length-1){
-      current++;
-      renderQuestion();
-    } else {
-      alert("Hoàn thành! Đáp án: " + JSON.stringify(answers,null,2));
-    }
-  }
-
-  function prevQuestion(){
-    if (current>0){
-      current--;
-      renderQuestion();
-    }
-  }
-
-  backBtn.onclick = prevQuestion;
-  nextBtn.onclick = nextQuestion;
-
-  // Khi mở trang, kiểm tra có ?exam=... không
-  const urlParams = new URLSearchParams(window.location.search);
-  const examId = urlParams.get("exam");
-  if (examId) {
-    const examData = JSON.parse(localStorage.getItem(examId));
-    if (examData) {
-      // Chế độ học sinh
-      document.getElementById("adminPanel").style.display="none";
-      document.getElementById("examPanel").style.display="flex";
-      questions = examData.questions;
-      document.getElementById("pdfFrame").src = examData.pdfLink;
-      current = 0;
-      answers = {};
-      renderQuestion();
-    } else {
-      document.body.innerHTML = "<h2>❌ Đề thi không tồn tại hoặc đã bị xóa!</h2>";
-    }
-  }
-</script>
-
+    </script>
 </body>
 </html>
